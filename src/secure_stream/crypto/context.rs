@@ -97,14 +97,14 @@ pub enum DecryptContext {
 impl Default for DecryptContext {
     /// Default is "null" encryption.
     fn default() -> Self {
-        Self::null()
+        Self::no_encryption()
     }
 }
 
 impl DecryptContext {
     /// Contructs "null" encryption context which actually does no encryption.
     /// In this case data is simply serialized but not encrypted.
-    pub fn null() -> Self {
+    pub fn no_encryption() -> Self {
         DecryptContext::NoEncryption
     }
 
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn null_encryption_serializes_and_deserializes_data() {
         let enc_ctx = EncryptContext::no_encryption();
-        let dec_ctx = DecryptContext::null();
+        let dec_ctx = DecryptContext::no_encryption();
 
         let encrypted = enc_ctx.encrypt(b"test123").unwrap();
         let decrypted: [u8; 7] = dec_ctx.decrypt(&encrypted[..]).unwrap();

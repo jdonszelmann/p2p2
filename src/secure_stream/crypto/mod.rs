@@ -49,7 +49,6 @@ pub fn gen_sign_keypair_from_seed(seed: &Seed) -> (PublicSignKey, SecretSignKey)
 
 /// Generate a random byte vector with given `length`.
 pub(crate) fn generate_random_bytes(length: usize) -> Vec<u8> {
-
     (0..length)
         .map(|_| OsRng.gen())
         .filter(|b| *b != 0)
