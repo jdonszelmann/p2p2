@@ -19,7 +19,6 @@ impl PartialEq for SerializationError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::GenericBincode(_), Self::GenericBincode(_)) => true,
-            _ => false
         }
     }
 }
@@ -151,8 +150,8 @@ pub fn deserialize_from_with_limit<R: Read, T: DeserializeOwned>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bincode::ErrorKind;
-    use bincode::config::Bounded;
+    
+    
     use serde::de::{self, Visitor};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;

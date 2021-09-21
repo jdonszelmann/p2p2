@@ -18,7 +18,7 @@ pub mod signing;
 pub mod shared;
 pub mod ciphertext;
 pub mod seed;
-pub mod encryption_state;
+pub mod context;
 pub mod error;
 
 

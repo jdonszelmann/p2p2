@@ -3,7 +3,7 @@ use sodiumoxide::crypto::box_::{SecretKey, SECRETKEYBYTES};
 use sodiumoxide::crypto::{box_, sealedbox};
 use crate::secure_stream::crypto::PublicEncryptKey;
 use crate::secure_stream::crypto::shared::SharedSecretKey;
-use serde::{Serialize, Deserialize};
+use serde::{Serialize};
 use crate::secure_stream::crypto::error::DecryptionError;
 use crate::secure_stream::serialize::deserialize;
 use serde::de::DeserializeOwned;

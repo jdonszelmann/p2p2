@@ -1,9 +1,9 @@
 use sodiumoxide::crypto::{sign, secretbox};
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
+use serde::{Serialize, Deserialize};
 use std::sync::Arc;
-use sodiumoxide::crypto::box_::{Seed, PUBLICKEYBYTES, SECRETKEYBYTES};
+use sodiumoxide::crypto::box_::{PUBLICKEYBYTES};
 use crate::secure_stream::crypto::error::{EncryptionError, DecryptionError};
-use serde::de::{DeserializeOwned, Error, SeqAccess, MapAccess, EnumAccess};
+use serde::de::{DeserializeOwned};
 use std::fmt;
 use crate::secure_stream::serialize::{serialize, deserialize};
 use crate::secure_stream::crypto::ciphertext::CipherText;

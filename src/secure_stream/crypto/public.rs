@@ -1,11 +1,11 @@
 
-use sodiumoxide::crypto::box_::{PublicKey, SecretKey, self, PUBLICKEYBYTES};
-use sodiumoxide::crypto::{sealedbox, sign};
+use sodiumoxide::crypto::box_::{PublicKey, PUBLICKEYBYTES};
+use sodiumoxide::crypto::{sealedbox};
 use serde::{Serialize, Deserialize};
-use crate::secure_stream::serialize::{serialize, SerializationError, DeserializationError, deserialize};
-use thiserror::Error;
-use std::sync::Arc;
-use serde::de::DeserializeOwned;
+use crate::secure_stream::serialize::{serialize};
+
+
+
 use crate::secure_stream::crypto::error::EncryptionError;
 use std::fmt;
 

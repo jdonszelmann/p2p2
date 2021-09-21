@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Serialize};
 use sodiumoxide::crypto::box_;
 use std::sync::Arc;
 use serde::de::DeserializeOwned;

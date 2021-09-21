@@ -19,7 +19,7 @@ const SERIALIZED_U32_LEN: usize = 4;
 /// Simplifies encryption by holding the necessary context - encryption keys.
 /// Allows "null" encryption where data is only serialized. See: null object pattern.
 #[derive(Clone, Debug)]
-pub enum EncryptState {
+pub enum EncryptContext {
     /// No encryption.
     NoEncryption,
     /// Encryption + authentication
@@ -31,36 +31,36 @@ pub enum EncryptState {
     },
 }
 
-impl Default for EncryptState {
+impl Default for EncryptContext {
     /// Default is "null" encryption.
     fn default() -> Self {
         Self::no_encryption()
     }
 }
 
-impl EncryptState {
+impl EncryptContext {
     /// Constructs "no_encryption" encryption context which actually does no encryption.
     /// In this case data is simply serialized but not encrypted.
     pub fn no_encryption() -> Self {
-        EncryptState::NoEncryption
+        EncryptContext::NoEncryption
     }
 
     /// Construct crypto context that encrypts and authenticate messages.
     pub fn authenticated(shared_key: SharedSecretKey) -> Self {
-        EncryptState::Authenticated { shared_key }
+        EncryptContext::Authenticated { shared_key }
     }
 
     /// Constructs crypto context that is only meant for unauthenticated encryption.
     pub fn anonymous_encrypt(their_pk: PublicEncryptKey) -> Self {
-        EncryptState::AnonymousEncrypt { their_pk }
+        EncryptContext::AnonymousEncrypt { their_pk }
     }
 
     /// Serialize given structure and encrypt it.
     pub fn encrypt<T: Serialize>(&self, msg: &T) -> Result<Vec<u8>, EncryptionError> {
         Ok(match *self {
-            EncryptState::NoEncryption => serialize(msg)?,
-            EncryptState::Authenticated { ref shared_key } => shared_key.encrypt(msg)?,
-            EncryptState::AnonymousEncrypt { ref their_pk } => {
+            EncryptContext::NoEncryption => serialize(msg)?,
+            EncryptContext::Authenticated { ref shared_key } => shared_key.encrypt(msg)?,
+            EncryptContext::AnonymousEncrypt { ref their_pk } => {
                 their_pk.anonymously_encrypt(msg)?
             }
         })
@@ -70,9 +70,9 @@ impl EncryptState {
     /// constant size byte array. This size depends on encryption variation though.
     pub fn encrypted_size_len(&self) -> usize {
         match *self {
-            EncryptState::NoEncryption => SERIALIZED_U32_LEN,
-            EncryptState::Authenticated { .. } => ENCRYPTED_U32_LEN,
-            EncryptState::AnonymousEncrypt { .. } => ENCRYPTED_U32_LEN,
+            EncryptContext::NoEncryption => SERIALIZED_U32_LEN,
+            EncryptContext::Authenticated { .. } => ENCRYPTED_U32_LEN,
+            EncryptContext::AnonymousEncrypt { .. } => ENCRYPTED_U32_LEN,
         }
     }
 }
@@ -82,7 +82,7 @@ impl EncryptState {
 #[derive(Clone, Debug)]
 pub enum DecryptContext {
     /// No encryption.
-    Null,
+    NoEncryption,
     /// Encryption + authentication
     Authenticated { shared_key: SharedSecretKey },
     /// No message authentication. Only decrypt operation is allowed.
@@ -105,7 +105,7 @@ impl DecryptContext {
     /// Contructs "null" encryption context which actually does no encryption.
     /// In this case data is simply serialized but not encrypted.
     pub fn null() -> Self {
-        DecryptContext::Null
+        DecryptContext::NoEncryption
     }
 
     /// Construct crypto context that encrypts and authenticate messages.
@@ -124,7 +124,7 @@ impl DecryptContext {
             T: Serialize + DeserializeOwned,
     {
         Ok(match *self {
-            DecryptContext::Null => deserialize(msg)?,
+            DecryptContext::NoEncryption => deserialize(msg)?,
             DecryptContext::Authenticated { ref shared_key } => shared_key.decrypt(msg)?,
             DecryptContext::AnonymousDecrypt {
                 ref our_pk,
@@ -137,7 +137,7 @@ impl DecryptContext {
     /// `EncryptContext::encrypted_size_len()`, so that we could be able to decrypt it.
     pub fn encrypted_size_len(&self) -> usize {
         match *self {
-            DecryptContext::Null => SERIALIZED_U32_LEN,
+            DecryptContext::NoEncryption => SERIALIZED_U32_LEN,
             DecryptContext::Authenticated { .. } => ENCRYPTED_U32_LEN,
             DecryptContext::AnonymousDecrypt { .. } => ENCRYPTED_U32_LEN,
         }
@@ -160,7 +160,7 @@ mod tests {
         fn encrypt_always_returns_constant_length_byte_array_for_4_byte_input_with_anonymous_encryption(
         ) {
             let (pk, _sk) = gen_encrypt_keypair();
-            let enc_ctx = EncryptState::anonymous_encrypt(pk);
+            let enc_ctx = EncryptContext::anonymous_encrypt(pk);
 
             for size in &[0u32, 25000, DEFAULT_MAX_PAYLOAD_SIZE as u32, u32::MAX] {
                 let encrypted = enc_ctx.encrypt(&size).unwrap();
@@ -173,7 +173,7 @@ mod tests {
         ) {
             let (_, sk1) = gen_encrypt_keypair();
             let (pk2, _) = gen_encrypt_keypair();
-            let enc_ctx = EncryptState::authenticated(sk1.shared_secret(&pk2));
+            let enc_ctx = EncryptContext::authenticated(sk1.shared_secret(&pk2));
 
             for size in &[0u32, 25000, DEFAULT_MAX_PAYLOAD_SIZE as u32, u32::MAX] {
                 let encrypted = enc_ctx.encrypt(&size).unwrap();
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn null_encryption_serializes_and_deserializes_data() {
-        let enc_ctx = EncryptState::no_encryption();
+        let enc_ctx = EncryptContext::no_encryption();
         let dec_ctx = DecryptContext::null();
 
         let encrypted = enc_ctx.encrypt(b"test123").unwrap();
@@ -197,7 +197,7 @@ mod tests {
     fn authenticated_encryption_encrypts_and_decrypts_data() {
         let (pk1, sk1) = gen_encrypt_keypair();
         let (pk2, sk2) = gen_encrypt_keypair();
-        let enc_ctx = EncryptState::authenticated(sk1.shared_secret(&pk2));
+        let enc_ctx = EncryptContext::authenticated(sk1.shared_secret(&pk2));
         let dec_ctx = DecryptContext::authenticated(sk2.shared_secret(&pk1));
 
         let encrypted = enc_ctx.encrypt(b"test123").unwrap();
@@ -209,12 +209,33 @@ mod tests {
     #[test]
     fn anonymous_encryption() {
         let (pk1, sk1) = gen_encrypt_keypair();
-        let enc_ctx = EncryptState::anonymous_encrypt(pk1.clone());
+        let enc_ctx = EncryptContext::anonymous_encrypt(pk1.clone());
         let dec_ctx = DecryptContext::anonymous_decrypt(pk1, sk1);
 
         let encrypted = enc_ctx.encrypt(b"test123").unwrap();
         let decrypted: [u8; 7] = dec_ctx.decrypt(&encrypted[..]).unwrap();
 
         assert_eq!(&decrypted, b"test123");
+    }
+
+    #[test]
+    fn encrypted_size() {
+        let (pk1, sk1) = gen_encrypt_keypair();
+        let (pk2, _) = gen_encrypt_keypair();
+
+        let enc_ctx_1 = EncryptContext::anonymous_encrypt(pk1.clone());
+        let enc_ctx_2 = EncryptContext::authenticated(sk1.shared_secret(&pk2));
+        let enc_ctx_3 = EncryptContext::no_encryption();
+
+        let data = 1u32;
+
+        let encrypted1 = enc_ctx_1.encrypt(&data).unwrap();
+        assert_eq!(enc_ctx_1.encrypted_size_len(), encrypted1.len());
+
+        let encrypted2 = enc_ctx_2.encrypt(&data).unwrap();
+        assert_eq!(enc_ctx_2.encrypted_size_len(), encrypted2.len());
+
+        let encrypted3 = enc_ctx_3.encrypt(&data).unwrap();
+        assert_eq!(enc_ctx_3.encrypted_size_len(), encrypted3.len());
     }
 }
