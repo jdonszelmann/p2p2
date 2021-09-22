@@ -6,3 +6,7 @@ pub mod udp;
 pub mod tcp;
 
 pub mod secure_stream;
+pub mod nat;
+
+pub mod async_socket;
+pub mod holepunch;

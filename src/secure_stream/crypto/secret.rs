@@ -33,7 +33,7 @@ impl SecretEncryptKey {
 
     /// Computes a shared secret from our secret key and the recipient's public key.
     pub fn shared_secret(&self, their_pk: &PublicEncryptKey) -> SharedSecretKey {
-        let precomputed = Arc::new(box_::precompute(&their_pk.encrypt, &self.inner.encrypt));
+        let precomputed = Arc::new(box_::precompute(&their_pk.inner, &self.inner.encrypt));
         SharedSecretKey { precomputed }
     }
 
@@ -77,7 +77,7 @@ impl SecretEncryptKey {
     ) -> Result<Vec<u8>, DecryptionError> {
         Ok(sealedbox::open(
             ciphertext,
-            &my_pk.encrypt,
+            &my_pk.inner,
             &self.inner.encrypt,
         ).map_err(DecryptionError::GenericDecryptionError)?)
     }

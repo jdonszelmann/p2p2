@@ -15,21 +15,21 @@ use std::fmt;
 /// Use `gen_encrypt_keypair()` to generate a public and secret key pair.
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone)]
 pub struct PublicEncryptKey {
-    pub(crate) encrypt: PublicKey
+    pub(crate) inner: PublicKey
 }
 
 impl PublicEncryptKey {
     /// Construct public key from bytes. Useful when it was serialized before.
     pub fn from_bytes(public_key: [u8; PUBLICKEYBYTES]) -> Self {
         Self {
-            encrypt: PublicKey(public_key),
+            inner: PublicKey(public_key),
         }
     }
 
     /// Convert the `PublicEncryptKey` into the raw underlying bytes.
     /// For anyone who wants to store the public key.
     pub fn into_bytes(self) -> [u8; PUBLICKEYBYTES] {
-        self.encrypt.0
+        self.inner.0
     }
 
     /// Encrypts serializable `plaintext` using anonymous encryption.
@@ -53,7 +53,7 @@ impl PublicEncryptKey {
     ///
     /// Returns ciphertext in case of success.
     pub fn anonymously_encrypt_bytes(&self, plaintext: &[u8]) -> Vec<u8> {
-        sealedbox::seal(plaintext, &self.encrypt)
+        sealedbox::seal(plaintext, &self.inner)
     }
 }
 
@@ -62,7 +62,7 @@ impl fmt::Display for PublicEncryptKey {
         write!(
             f,
             "{:02x}{:02x}{:02x}..",
-            &self.encrypt.0[0], &self.encrypt.0[1], &self.encrypt.0[2]
+            &self.inner.0[0], &self.inner.0[1], &self.inner.0[2]
         )
     }
 }
