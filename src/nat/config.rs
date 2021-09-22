@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use serde::{Serialize, Deserialize};
 
 /// Default for udp rendezvous port
 pub const UDP_RENDEZVOUS_PORT: u16 = 5483;
@@ -50,4 +50,3 @@ pub struct UdpHolePuncher {
     /// can ensue.
     pub ttl_increment_delay_ms: u64,
 }
-

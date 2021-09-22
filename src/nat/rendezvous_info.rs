@@ -1,6 +1,6 @@
-use std::net::SocketAddr;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::box_;
+use std::net::SocketAddr;
 
 /// A rendezvous packet.
 ///

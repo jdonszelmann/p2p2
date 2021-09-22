@@ -2,31 +2,29 @@
 //! https://github.com/maidsafe-archive/safe_crypto/blob/master/src/lib.rs
 //! which is licensed under the MIT license (2018; MaidSafe.net limited).
 
-
-use sodiumoxide::crypto::{box_, sign};
-use std::sync::Arc;
 use crate::secure_stream::crypto::public::PublicEncryptKey;
 use crate::secure_stream::crypto::secret::{SecretEncryptKey, SecretEncryptKeyInner};
+use crate::secure_stream::crypto::seed::Seed;
 use crate::secure_stream::crypto::signing::{PublicSignKey, SecretSignKey, SecretSignKeyInner};
 use rand::rngs::OsRng;
 use rand::Rng;
-use crate::secure_stream::crypto::seed::Seed;
+use sodiumoxide::crypto::{box_, sign};
+use std::sync::Arc;
 
-pub mod public;
-pub mod secret;
-pub mod signing;
-pub mod shared;
 pub mod ciphertext;
-pub mod seed;
 pub mod context;
 pub mod error;
+pub mod public;
+pub mod secret;
+pub mod seed;
+pub mod shared;
+pub mod signing;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct KeyPair {
     pub public: PublicEncryptKey,
-    pub secret: SecretEncryptKey
+    pub secret: SecretEncryptKey,
 }
-
 
 impl KeyPair {
     pub fn gen() -> Self {
@@ -34,34 +32,26 @@ impl KeyPair {
     }
 
     pub fn split(self) -> (PublicEncryptKey, SecretEncryptKey) {
-        return (self.public, self.secret)
+        (self.public, self.secret)
     }
 }
 
 impl From<(PublicEncryptKey, SecretEncryptKey)> for KeyPair {
     fn from((public, secret): (PublicEncryptKey, SecretEncryptKey)) -> Self {
-        Self {
-            public,
-            secret
-        }
+        Self { public, secret }
     }
 }
 
 impl From<(SecretEncryptKey, PublicEncryptKey)> for KeyPair {
     fn from((secret, public): (SecretEncryptKey, PublicEncryptKey)) -> Self {
-        Self {
-            public,
-            secret
-        }
+        Self { public, secret }
     }
 }
 
 /// Randomly generates a secret key and a corresponding public key.
 fn gen_encrypt_keypair() -> (PublicEncryptKey, SecretEncryptKey) {
     let (encrypt_pk, encrypt_sk) = box_::gen_keypair();
-    let pub_enc_key = PublicEncryptKey {
-        inner: encrypt_pk,
-    };
+    let pub_enc_key = PublicEncryptKey { inner: encrypt_pk };
     let sec_enc_key = SecretEncryptKey {
         inner: Arc::new(SecretEncryptKeyInner {
             encrypt: encrypt_sk,

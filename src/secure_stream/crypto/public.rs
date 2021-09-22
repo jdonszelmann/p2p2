@@ -1,21 +1,17 @@
-
+use crate::secure_stream::serialize::serialize;
+use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::box_::{PublicKey, PUBLICKEYBYTES};
-use sodiumoxide::crypto::{sealedbox};
-use serde::{Serialize, Deserialize};
-use crate::secure_stream::serialize::{serialize};
-
-
+use sodiumoxide::crypto::sealedbox;
 
 use crate::secure_stream::crypto::error::EncryptionError;
 use std::fmt;
-
 
 /// The public key used encrypt data that can only be decrypted by the corresponding secret key,
 /// which is represented by `SecretEncryptKey`.
 /// Use `gen_encrypt_keypair()` to generate a public and secret key pair.
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone)]
 pub struct PublicEncryptKey {
-    pub(crate) inner: PublicKey
+    pub(crate) inner: PublicKey,
 }
 
 impl PublicEncryptKey {
@@ -41,7 +37,10 @@ impl PublicEncryptKey {
     ///
     /// Returns ciphertext in case of success.
     /// Can return an `Error` in case of a serialisation error.
-    pub fn anonymously_encrypt<T: Serialize>(&self, plaintext: &T) -> Result<Vec<u8>, EncryptionError> {
+    pub fn anonymously_encrypt<T: Serialize>(
+        &self,
+        plaintext: &T,
+    ) -> Result<Vec<u8>, EncryptionError> {
         Ok(self.anonymously_encrypt_bytes(&serialize(plaintext)?))
     }
 

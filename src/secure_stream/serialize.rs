@@ -2,17 +2,16 @@
 //! https://github.com/maidsafe/maidsafe-utilities/blob/master/src/serialisation.rs
 //! which is licensed under the MIT license (2018; MaidSafe.net limited).
 
-
+use bincode::Options;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::io::{Cursor, Read, Write};
 use thiserror::Error;
-use bincode::Options;
 
 #[derive(Debug, Error)]
 pub enum SerializationError {
     #[error("bincode serialization error: {0}")]
-    GenericBincode(#[from] bincode::Error)
+    GenericBincode(#[from] bincode::Error),
 }
 
 impl PartialEq for SerializationError {
@@ -29,16 +28,16 @@ pub enum DeserializationError {
     BytesLeftOver,
 
     #[error("bincode deserialization error: {0}")]
-    GenericBincode(#[from] bincode::Error)
+    GenericBincode(#[from] bincode::Error),
 }
 
 impl PartialEq for DeserializationError {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::GenericBincode(_), Self::GenericBincode(_)) => true,
-            (Self::BytesLeftOver, Self::BytesLeftOver) => true,
-            _ => false
-        }
+        matches!(
+            (self, other),
+            (Self::GenericBincode(_), Self::GenericBincode(_))
+                | (Self::BytesLeftOver, Self::BytesLeftOver)
+        )
     }
 }
 
@@ -52,7 +51,10 @@ pub fn serialize<T: Serialize>(data: &T) -> Result<Vec<u8>, SerializationError> 
 }
 
 /// serialize an `Serialize` type with max limit specified.
-pub fn serialize_with_limit<T: Serialize>(data: &T, size_limit: u64) -> Result<Vec<u8>, SerializationError> {
+pub fn serialize_with_limit<T: Serialize>(
+    data: &T,
+    size_limit: u64,
+) -> Result<Vec<u8>, SerializationError> {
     bincode::DefaultOptions::new()
         .with_fixint_encoding()
         .allow_trailing_bytes()
@@ -63,8 +65,8 @@ pub fn serialize_with_limit<T: Serialize>(data: &T, size_limit: u64) -> Result<V
 
 /// Deserialize a `Deserialize` type with no limit on the size of the serialized data.
 pub fn deserialize<T>(data: &[u8]) -> Result<T, DeserializationError>
-    where
-        T: Serialize + DeserializeOwned,
+where
+    T: Serialize + DeserializeOwned,
 {
     let value = bincode::DefaultOptions::new()
         .with_fixint_encoding()
@@ -78,8 +80,8 @@ pub fn deserialize<T>(data: &[u8]) -> Result<T, DeserializationError>
 
 /// Deserialize a `Deserialize` type with max size limit specified.
 pub fn deserialize_with_limit<T>(data: &[u8], size_limit: u64) -> Result<T, DeserializationError>
-    where
-        T: DeserializeOwned,
+where
+    T: DeserializeOwned,
 {
     let mut cursor = Cursor::new(data);
 
@@ -150,8 +152,7 @@ pub fn deserialize_from_with_limit<R: Read, T: DeserializeOwned>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
-    
+
     use serde::de::{self, Visitor};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::fmt;
@@ -171,7 +172,10 @@ mod tests {
 
         // Try to parse a `String` into a `u64` to check the unused bytes triggers an error.
         let serialized_string = serialize(&"Another string".to_string()).unwrap();
-        assert_eq!(deserialize::<u64>(&serialized_string), Err(DeserializationError::BytesLeftOver));
+        assert_eq!(
+            deserialize::<u64>(&serialized_string),
+            Err(DeserializationError::BytesLeftOver)
+        );
     }
 
     #[test]
@@ -200,34 +204,40 @@ mod tests {
         assert_eq!(original_data, deserialized_data);
 
         serialized_data.clear();
-        serialize_into_with_limit(
-            &original_data,
-            &mut serialized_data,
-            upper_limit,
-        ).unwrap();
+        serialize_into_with_limit(&original_data, &mut serialized_data, upper_limit).unwrap();
         let mut serialized = Cursor::new(serialized_data);
         deserialized_data = deserialize_from(&mut serialized).unwrap();
         assert_eq!(original_data, deserialized_data);
 
         // Try to serialize data above limit
         original_data.push(0);
-        if let Err(SerializationError::GenericBincode(_)) = serialize_with_limit(&original_data, upper_limit) {} else {
+        if let Err(SerializationError::GenericBincode(_)) =
+            serialize_with_limit(&original_data, upper_limit)
+        {
+        } else {
             panic!("Expected size limit error.");
         }
         let mut buffer = vec![];
         if let Err(SerializationError::GenericBincode(_)) =
-        serialize_into_with_limit(&original_data, &mut buffer, upper_limit) {} else {
+            serialize_into_with_limit(&original_data, &mut buffer, upper_limit)
+        {
+        } else {
             panic!("Expected size limit error.");
         }
 
         // Try to deserialize data above limit
         let excessive = serialize(&original_data).unwrap();
-        if let Err(DeserializationError::GenericBincode(_)) = deserialize_with_limit::<Vec<u64>>(&excessive, upper_limit) {} else {
+        if let Err(DeserializationError::GenericBincode(_)) =
+            deserialize_with_limit::<Vec<u64>>(&excessive, upper_limit)
+        {
+        } else {
             panic!("Expected size limit error.");
         }
         serialized = Cursor::new(excessive);
         if let Err(DeserializationError::GenericBincode(_)) =
-            deserialize_from_with_limit::<Cursor<_>, Vec<u64>>(&mut serialized, upper_limit) {} else {
+            deserialize_from_with_limit::<Cursor<_>, Vec<u64>>(&mut serialized, upper_limit)
+        {
+        } else {
             panic!("Expected size limit error.");
         }
     }
@@ -293,14 +303,9 @@ mod tests {
             err => panic!("{:?}", err),
         }
 
-
         assert_eq!(
             deserialize::<Wrapper>(&[1, 0, 0, 0, 0, 0, 0, 0, 255, 255]),
             Err(DeserializationError::BytesLeftOver)
         );
     }
 }
-
-
-
-

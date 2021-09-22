@@ -2,14 +2,13 @@
 //! https://github.com/maidsafe-archive/socket-collection/blob/master/src/crypto.rs
 //! which is licensed under the MIT license (2018; MaidSafe.net limited).
 
+use crate::secure_stream::crypto::error::{DecryptionError, EncryptionError};
+use crate::secure_stream::crypto::public::PublicEncryptKey;
+use crate::secure_stream::crypto::secret::SecretEncryptKey;
+use crate::secure_stream::crypto::shared::SharedSecretKey;
+use crate::secure_stream::serialize::{deserialize, serialize};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use crate::secure_stream::serialize::{serialize, deserialize};
-use crate::secure_stream::crypto::public::PublicEncryptKey;
-use crate::secure_stream::crypto::error::{EncryptionError, DecryptionError};
-use crate::secure_stream::crypto::shared::SharedSecretKey;
-use crate::secure_stream::crypto::secret::SecretEncryptKey;
-
 
 // safe_crypto always serializes 32 bit number into 52 byte array
 const ENCRYPTED_U32_LEN: usize = 52;
@@ -120,8 +119,8 @@ impl DecryptContext {
 
     /// Decrypt given buffer and deserialize into structure.
     pub fn decrypt<T>(&self, msg: &[u8]) -> Result<T, DecryptionError>
-        where
-            T: Serialize + DeserializeOwned,
+    where
+        T: Serialize + DeserializeOwned,
     {
         Ok(match *self {
             DecryptContext::NoEncryption => deserialize(msg)?,

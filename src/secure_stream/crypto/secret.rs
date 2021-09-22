@@ -1,12 +1,12 @@
-use std::sync::Arc;
-use sodiumoxide::crypto::box_::{SecretKey, SECRETKEYBYTES};
-use sodiumoxide::crypto::{box_, sealedbox};
-use crate::secure_stream::crypto::PublicEncryptKey;
-use crate::secure_stream::crypto::shared::SharedSecretKey;
-use serde::{Serialize};
 use crate::secure_stream::crypto::error::DecryptionError;
+use crate::secure_stream::crypto::shared::SharedSecretKey;
+use crate::secure_stream::crypto::PublicEncryptKey;
 use crate::secure_stream::serialize::deserialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
+use sodiumoxide::crypto::box_::{SecretKey, SECRETKEYBYTES};
+use sodiumoxide::crypto::{box_, sealedbox};
+use std::sync::Arc;
 
 /// Reference counted secret encryption key used to decrypt data previously encrypted with
 /// `PublicEncryptKey`.
@@ -55,8 +55,8 @@ impl SecretEncryptKey {
         ciphertext: &[u8],
         my_pk: &PublicEncryptKey,
     ) -> Result<T, DecryptionError>
-        where
-            T: Serialize + DeserializeOwned,
+    where
+        T: Serialize + DeserializeOwned,
     {
         Ok(deserialize(
             &self.anonymously_decrypt_bytes(ciphertext, my_pk)?,
@@ -75,10 +75,7 @@ impl SecretEncryptKey {
         ciphertext: &[u8],
         my_pk: &PublicEncryptKey,
     ) -> Result<Vec<u8>, DecryptionError> {
-        Ok(sealedbox::open(
-            ciphertext,
-            &my_pk.inner,
-            &self.inner.encrypt,
-        ).map_err(DecryptionError::GenericDecryptionError)?)
+        sealedbox::open(ciphertext, &my_pk.inner, &self.inner.encrypt)
+            .map_err(DecryptionError::GenericDecryptionError)
     }
 }

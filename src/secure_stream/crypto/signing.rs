@@ -1,18 +1,18 @@
-use sodiumoxide::crypto::{sign, secretbox};
-use serde::{Serialize, Deserialize};
-use std::sync::Arc;
-use sodiumoxide::crypto::box_::{PUBLICKEYBYTES};
-use crate::secure_stream::crypto::error::{EncryptionError, DecryptionError};
-use serde::de::{DeserializeOwned};
-use std::fmt;
-use crate::secure_stream::serialize::{serialize, deserialize};
 use crate::secure_stream::crypto::ciphertext::CipherText;
+use crate::secure_stream::crypto::error::{DecryptionError, EncryptionError};
+use crate::secure_stream::serialize::{deserialize, serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use sodiumoxide::crypto::box_::PUBLICKEYBYTES;
+use sodiumoxide::crypto::{secretbox, sign};
+use std::fmt;
+use std::sync::Arc;
 
 /// Public signing key used to verify that the signature appended to a message was actually issued
 /// by the creator of the public key.
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Clone, Copy)]
 pub struct PublicSignKey {
-    pub(in super) sign: sign::PublicKey,
+    pub(super) sign: sign::PublicKey,
 }
 
 impl PublicSignKey {
@@ -82,27 +82,23 @@ pub fn gen_sign_keypair() -> (PublicSignKey, SecretSignKey) {
     (pub_sign_key, sec_sign_key)
 }
 
-
 /// Detached signature.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Signature {
     signature: [u8; 64],
 }
 
-
 impl Signature {
     fn new(s: sign::Signature) -> Signature {
         Self {
-            signature: s.to_bytes()
+            signature: s.to_bytes(),
         }
     }
 
     /// Construct the signature from bytes. Useful when it was serialized before.
     // TODO: previously: SIGNATURE_LENGTH (but is private)
     pub fn from_bytes(key: [u8; 64]) -> Self {
-        Self {
-            signature: key,
-        }
+        Self { signature: key }
     }
 
     pub(crate) fn signature(&self) -> sign::Signature {
@@ -174,10 +170,9 @@ impl SymmetricKey {
         plaintext: &[u8],
         nonce: &Nonce,
     ) -> Result<Vec<u8>, EncryptionError> {
-        let nonce = &nonce.nonce;
-        let ciphertext = secretbox::seal(plaintext, &nonce, &self.encrypt);
+        let ciphertext = secretbox::seal(plaintext, &nonce.nonce, &self.encrypt);
         Ok(serialize(&CipherText {
-            nonce: nonce.0,
+            nonce: nonce.nonce.0,
             ciphertext,
         })?)
     }
@@ -203,8 +198,8 @@ impl SymmetricKey {
     /// Can return `Error` in case of a deserialisation error, if the ciphertext
     /// is not valid, or if it can not be decrypted.
     pub fn decrypt<T>(&self, ciphertext: &[u8]) -> Result<T, DecryptionError>
-        where
-            T: DeserializeOwned + Serialize,
+    where
+        T: DeserializeOwned + Serialize,
     {
         Ok(deserialize(&self.decrypt_bytes(ciphertext)?)?)
     }
@@ -219,11 +214,8 @@ impl SymmetricKey {
     /// is not valid, or if it can not be decrypted.
     pub fn decrypt_bytes(&self, ciphertext: &[u8]) -> Result<Vec<u8>, DecryptionError> {
         let CipherText { nonce, ciphertext } = deserialize(ciphertext)?;
-        Ok(secretbox::open(
-            &ciphertext,
-            &secretbox::Nonce(nonce),
-            &self.encrypt,
-        ).map_err(DecryptionError::GenericDecryptionError)?)
+        secretbox::open(&ciphertext, &secretbox::Nonce(nonce), &self.encrypt)
+            .map_err(DecryptionError::GenericDecryptionError)
     }
 }
 

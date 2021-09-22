@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use sodiumoxide::crypto::secretbox;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]
 pub(super) struct CipherText {

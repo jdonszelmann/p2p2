@@ -1,10 +1,10 @@
-use crate::secure_stream::stream::{SecureStream, ReceiveError};
-use crate::async_socket::{UdpSocket, BindError};
-use thiserror::Error;
+use crate::async_socket::{BindError, UdpSocket};
+use crate::secure_stream::stream::{ReceiveError, SecureStream};
+use crate::udp::messages::{UdpEchoReq, UdpEchoResp};
 use futures::channel;
 use futures::FutureExt;
 use std::net::SocketAddr;
-use crate::udp::messages::{UdpEchoReq, UdpEchoResp};
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RendezvousServerError {
@@ -12,9 +12,8 @@ pub enum RendezvousServerError {
     BindSocket(#[from] BindError),
 
     #[error("error while receiving message: {0}")]
-    Receive(#[from] ReceiveError)
+    Receive(#[from] ReceiveError),
 }
-
 
 #[derive(Debug, Error)]
 pub enum StartupError {
@@ -38,7 +37,7 @@ impl Communicator {
     /// Signals the server to stop and then blocks until server is stopped.
     pub fn stop_server(&mut self) -> StopStatus {
         if let Some(i) = self.stop_channel.take() {
-            if let Ok(_) = i.send(()) {
+            if i.send(()).is_ok() {
                 StopStatus::Stopped
             } else {
                 StopStatus::AlreadyStopped
@@ -54,9 +53,7 @@ impl Communicator {
     pub async fn server_address(&mut self) -> Result<SocketAddr, StartupError> {
         let addr = match self.server_address {
             Ok(ref addr) => return Ok(*addr),
-            Err(ref mut chan) => {
-                chan.await.map_err(|_| StartupError::ServerClosed)?
-            }
+            Err(ref mut chan) => chan.await.map_err(|_| StartupError::ServerClosed)?,
         };
 
         self.server_address = Ok(addr);
@@ -93,7 +90,7 @@ impl RendezvousServer {
                     address,
                     stop_channel: stop_rx,
                     startup: start_tx,
-                }
+                },
             )
         }
 
@@ -105,8 +102,8 @@ impl RendezvousServer {
     }
 
     pub async fn start<S>(mut self) -> Result<(), RendezvousServerError>
-        where
-            S: UdpSocket<SendExtra=SocketAddr, RecvExtra=SocketAddr>
+    where
+        S: UdpSocket<SendExtra = SocketAddr, RecvExtra = SocketAddr>,
     {
         let socket = S::bind(self.address).await?;
         let mut stream = SecureStream::wrap(socket);
@@ -126,17 +123,14 @@ impl RendezvousServer {
                 Ok(i) => i,
                 Err(e) => {
                     log::info!("an error occurred: {}", e);
-                    continue
-                },
+                    continue;
+                }
             };
 
             let resp = pk.anonymously_encrypt_bytes(addr.to_string().as_bytes());
-            if let Err(e) =  stream.send_extra(
-                UdpEchoResp(resp),
-                addr
-            ).await {
+            if let Err(e) = stream.send_extra(UdpEchoResp(resp), addr).await {
                 log::info!("an error occurred: {}", e);
-                continue
+                continue;
             }
         }
 
@@ -145,15 +139,13 @@ impl RendezvousServer {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::udp::rendezvous_server::RendezvousServer;
     use crate::async_socket::{Tokio, UdpSocket};
-    use crate::udp::rendezvous_client::RendezvousClient;
-    use crate::udp::server_manager::RendezvousServerManager;
     use crate::secure_stream::crypto::KeyPair;
+    use crate::udp::rendezvous_client::RendezvousClient;
+    use crate::udp::rendezvous_server::RendezvousServer;
+    use crate::udp::server_manager::RendezvousServerManager;
 
     #[tokio::test]
     async fn respond_with_client_address() {

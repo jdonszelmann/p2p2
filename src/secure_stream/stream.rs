@@ -1,11 +1,11 @@
-use crate::secure_stream::crypto::context::{EncryptContext, DecryptContext};
+use crate::secure_stream::crypto::context::{DecryptContext, EncryptContext};
+use crate::secure_stream::crypto::error::{DecryptionError, EncryptionError};
 use futures::io::{AsyncReadExt, AsyncWriteExt};
-use serde::ser::Serialize;
 use serde::de::DeserializeOwned;
-use thiserror::Error;
-use crate::secure_stream::crypto::error::{EncryptionError, DecryptionError};
-use std::ops::{Deref, DerefMut};
+use serde::ser::Serialize;
 use std::error::Error;
+use std::ops::{Deref, DerefMut};
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ReceiveError {
@@ -68,7 +68,11 @@ impl<Inner> SecureStream<Inner> {
     }
 
     /// Create a SecureStream object with given encryption and decryption context
-    pub fn wrap_with_context(i: Inner, enc_context: EncryptContext, dec_context: DecryptContext) -> Self {
+    pub fn wrap_with_context(
+        i: Inner,
+        enc_context: EncryptContext,
+        dec_context: DecryptContext,
+    ) -> Self {
         Self {
             i,
             enc_context,
@@ -101,7 +105,7 @@ impl<Inner: RecvBytes + Unpin> SecureStream<Inner> {
         let size: u32 = self.dec_context.decrypt(size)?;
 
         if size as usize > rest.len() {
-            return Err(ReceiveError::TooSmall)
+            return Err(ReceiveError::TooSmall);
         }
 
         let value = self.dec_context.decrypt(&rest[..size as usize])?;
@@ -116,19 +120,20 @@ impl<Inner: RecvBytes + Unpin> SecureStream<Inner> {
     }
 
     /// Asynchronously wait to receive a message from this stream (with the given decryption context).
-    pub async fn recv_extra<T: Serialize + DeserializeOwned>(&mut self) -> Result<(T, <Inner as RecvBytes>::RecvExtra), ReceiveError> {
+    pub async fn recv_extra<T: Serialize + DeserializeOwned>(
+        &mut self,
+    ) -> Result<(T, <Inner as RecvBytes>::RecvExtra), ReceiveError> {
         let (msg, extra) = self.i.recv_extra().await?;
         Ok((self.decrypt_msg(&msg)?, extra))
     }
 }
 
 impl<Inner: SendBytes + Unpin> SecureStream<Inner> {
-
     fn encrypt_msg<T: Serialize + DeserializeOwned>(&self, value: T) -> Result<Vec<u8>, SendError> {
         let encrypted_data = self.enc_context.encrypt(&value)?;
         if let Some(max_size) = Inner::max_size() {
             if encrypted_data.len() > max_size {
-                return Err(SendError::TooLarge)
+                return Err(SendError::TooLarge);
             }
         }
 
@@ -141,21 +146,28 @@ impl<Inner: SendBytes + Unpin> SecureStream<Inner> {
         Ok(message)
     }
 
-    pub async fn send_extra<T: Serialize + DeserializeOwned>(&mut self, value: T, extra: <Inner as SendBytes>::SendExtra) -> Result<(), SendError> {
+    pub async fn send_extra<T: Serialize + DeserializeOwned>(
+        &mut self,
+        value: T,
+        extra: <Inner as SendBytes>::SendExtra,
+    ) -> Result<(), SendError> {
         let msg = self.encrypt_msg(value)?;
         let res = self.i.send_extra(&msg, extra).await?;
         if res != msg.len() {
-            return Err(SendError::TooLarge)
+            return Err(SendError::TooLarge);
         }
         Ok(())
     }
 
     /// Asynchronously send a message over the channel (with the given encryption context)
-    pub async fn send<T: Serialize + DeserializeOwned>(&mut self, value: T) -> Result<(), SendError> {
+    pub async fn send<T: Serialize + DeserializeOwned>(
+        &mut self,
+        value: T,
+    ) -> Result<(), SendError> {
         let msg = self.encrypt_msg(value)?;
         let res = self.i.send(&msg).await?;
         if res != msg.len() {
-            return Err(SendError::TooLarge)
+            return Err(SendError::TooLarge);
         }
         Ok(())
     }
@@ -166,9 +178,13 @@ pub trait RecvBytes {
     async fn recv(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>;
 
     type RecvExtra;
-    async fn recv_extra(&mut self) -> Result<(Vec<u8>, Self::RecvExtra), Box<dyn Error + Send + Sync>>;
+    async fn recv_extra(
+        &mut self,
+    ) -> Result<(Vec<u8>, Self::RecvExtra), Box<dyn Error + Send + Sync>>;
 
-    fn max_size() -> Option<usize> where Self: Sized;
+    fn max_size() -> Option<usize>
+    where
+        Self: Sized;
 }
 
 #[async_trait::async_trait]
@@ -177,9 +193,15 @@ pub trait SendBytes {
 
     type SendExtra;
 
-    async fn send_extra(&mut self, message: &[u8], extra: Self::SendExtra) -> Result<usize, Box<dyn Error + Send + Sync>>;
+    async fn send_extra(
+        &mut self,
+        message: &[u8],
+        extra: Self::SendExtra,
+    ) -> Result<usize, Box<dyn Error + Send + Sync>>;
 
-    fn max_size() -> Option<usize> where Self: Sized;
+    fn max_size() -> Option<usize>
+    where
+        Self: Sized;
 }
 
 #[async_trait::async_trait]
@@ -191,11 +213,18 @@ impl<T: AsyncWriteExt + Unpin + Send + Sync> SendBytes for T {
 
     type SendExtra = ();
 
-    async fn send_extra(&mut self, message: &[u8], _extra: Self::SendExtra) -> Result<usize, Box<dyn Error + Send + Sync>> {
+    async fn send_extra(
+        &mut self,
+        message: &[u8],
+        _extra: Self::SendExtra,
+    ) -> Result<usize, Box<dyn Error + Send + Sync>> {
         self.send(message).await
     }
 
-    fn max_size() -> Option<usize> where Self: Sized {
+    fn max_size() -> Option<usize>
+    where
+        Self: Sized,
+    {
         None
     }
 }
@@ -210,23 +239,26 @@ impl<T: AsyncReadExt + Unpin + Send + Sync> RecvBytes for T {
 
     type RecvExtra = ();
 
-    async fn recv_extra(&mut self) -> Result<(Vec<u8>, Self::RecvExtra), Box<dyn Error + Send + Sync>> {
+    async fn recv_extra(
+        &mut self,
+    ) -> Result<(Vec<u8>, Self::RecvExtra), Box<dyn Error + Send + Sync>> {
         Ok((self.recv().await?, ()))
     }
 
-    fn max_size() -> Option<usize> where Self: Sized {
+    fn max_size() -> Option<usize>
+    where
+        Self: Sized,
+    {
         None
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::secure_stream::crypto::{generate_random_bytes, KeyPair};
     use crate::secure_stream::crypto::context::{DecryptContext, EncryptContext};
-    use futures::io::Cursor;
+    use crate::secure_stream::crypto::{generate_random_bytes, KeyPair};
     use crate::secure_stream::stream::SecureStream;
-
+    use futures::io::Cursor;
 
     #[tokio::test]
     async fn data_read_write_different_lengths() {
@@ -315,7 +347,6 @@ mod tests {
             assert_eq!(res, data);
         }
     }
-
 
     #[tokio::test]
     async fn data_read_write_with_encryption() {

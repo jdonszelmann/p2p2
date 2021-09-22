@@ -1,11 +1,11 @@
-use crate::udp::server_manager::RendezvousServerManager;
-use crate::async_socket::{UdpSocket, BindError};
-use crate::secure_stream::stream::{SecureStream, ReceiveError};
-use thiserror::Error;
-use crate::secure_stream::crypto::KeyPair;
-use std::net::SocketAddr;
+use crate::async_socket::{BindError, UdpSocket};
 use crate::nat::nat_type::NatType;
+use crate::secure_stream::crypto::KeyPair;
+use crate::secure_stream::stream::{ReceiveError, SecureStream};
 use crate::udp::messages::{UdpEchoReq, UdpEchoResp};
+use crate::udp::server_manager::RendezvousServerManager;
+use std::net::SocketAddr;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RendezvousError {
@@ -41,19 +41,19 @@ impl<S: UdpSocket> RendezvousClient<S> {
         Self {
             rsm,
             stream: SecureStream::wrap(socket),
-            keys
+            keys,
         }
     }
 
-    pub async fn default_socket(rsm: RendezvousServerManager, keys: KeyPair) -> Result<Self, BindError> {
-        let socket = S::bind(([0, 0, 0, 0], 0).into())
-            .await?;
+    pub async fn default_socket(
+        rsm: RendezvousServerManager,
+        keys: KeyPair,
+    ) -> Result<Self, BindError> {
+        let socket = S::bind(([0, 0, 0, 0], 0).into()).await?;
         Ok(Self::new(rsm, keys, socket))
     }
 
-
     pub async fn do_rendezvous(mut self) -> Result<RendezvousSuccessful<S>, RendezvousError> {
-
         let num_servers = self.rsm.len();
 
         // NOTE: DO NOT convert to set - strict ordering is required to pair with peer
@@ -63,13 +63,13 @@ impl<S: UdpSocket> RendezvousClient<S> {
         while let Some(address) = self.rsm.remove_random() {
             if let Err(e) = self.stream.connect(address).await {
                 log::error!("failed to connect to {}: {}", address, e);
-                continue
+                continue;
             }
 
             // Send them (a RendezvousServer) our public key
             if let Err(e) = self.stream.send(UdpEchoReq(self.keys.public.clone())).await {
                 log::error!("failed to send to {}: {}", address, e);
-                continue
+                continue;
             }
 
             // return on error since we already have had contact with this server.
@@ -81,13 +81,17 @@ impl<S: UdpSocket> RendezvousClient<S> {
             // the response contains our external ip address (as observed by the rendezvous server).
             // it's encrypted and encoded as utf8 bytes (TODO: is this a smart encoding? How about bincode?)
             // try to decrypt/decode the message here.
-            let our_external_address_bytes = match self.keys.secret.anonymously_decrypt_bytes(
-                &message.0,
-                &self.keys.public
-            ) {
+            let our_external_address_bytes = match self
+                .keys
+                .secret
+                .anonymously_decrypt_bytes(&message.0, &self.keys.public)
+            {
                 Ok(i) => i,
                 Err(e) => {
-                    log::error!("failed to decrypt, but ignoring (retrying next rendezvous server): {}", e);
+                    log::error!(
+                        "failed to decrypt, but ignoring (retrying next rendezvous server): {}",
+                        e
+                    );
                     continue;
                 }
             };
@@ -95,7 +99,10 @@ impl<S: UdpSocket> RendezvousClient<S> {
             let our_external_address_string = match String::from_utf8(our_external_address_bytes) {
                 Ok(i) => i,
                 Err(e) => {
-                    log::error!("failed to decode utf8, but ignoring (retrying next rendezvous server): {}", e);
+                    log::error!(
+                        "failed to decode utf8, but ignoring (retrying next rendezvous server): {}",
+                        e
+                    );
                     continue;
                 }
             };
@@ -111,7 +118,7 @@ impl<S: UdpSocket> RendezvousClient<S> {
             externally_observed_external_addresses.push(our_external_address)
         }
 
-        if externally_observed_external_addresses.len() == 0 {
+        if externally_observed_external_addresses.is_empty() {
             log::info!("no more rendezvous servers to try");
             return Err(RendezvousError::NoMoreRVZServers);
         }
@@ -124,16 +131,18 @@ impl<S: UdpSocket> RendezvousClient<S> {
         for addr in externally_observed_external_addresses {
             addresses.push(addr);
             if assumed_external_address.ip() != addr.ip() {
-                return Err(RendezvousError::SymmetricNatVariableIp(NatType::EDMRandomIp(
-                    addresses.into_iter().map(|i| i.ip()).collect()
-                )));
+                return Err(RendezvousError::SymmetricNatVariableIp(
+                    NatType::EDMRandomIp(addresses.into_iter().map(|i| i.ip()).collect()),
+                ));
             } else if addresses.len() == 2 {
-                port_prediction_offset = i32::from(addr.port()) - i32::from(assumed_external_address.port());
-            } else if port_prediction_offset !=
-                (i32::from(addr.port()) - i32::from(assumed_external_address.port())) {
-                return Err(RendezvousError::SymmetricNatNonUniformPortMap(NatType::EDMRandomPort(
-                    addresses.into_iter().map(|i| i.port()).collect()
-                )));
+                port_prediction_offset =
+                    i32::from(addr.port()) - i32::from(assumed_external_address.port());
+            } else if port_prediction_offset
+                != (i32::from(addr.port()) - i32::from(assumed_external_address.port()))
+            {
+                return Err(RendezvousError::SymmetricNatNonUniformPortMap(
+                    NatType::EDMRandomPort(addresses.into_iter().map(|i| i.port()).collect()),
+                ));
             }
 
             assumed_external_address = addr;
@@ -155,12 +164,7 @@ impl<S: UdpSocket> RendezvousClient<S> {
             stream: self.stream,
             keys: self.keys,
             external_address,
-            nat_type
+            nat_type,
         })
     }
 }
-
-
-
-
-

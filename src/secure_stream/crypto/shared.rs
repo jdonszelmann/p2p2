@@ -1,10 +1,10 @@
-use serde::{Serialize};
+use crate::secure_stream::crypto::ciphertext::CipherText;
+use crate::secure_stream::crypto::error::{DecryptionError, EncryptionError};
+use crate::secure_stream::serialize::{deserialize, serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use sodiumoxide::crypto::box_;
 use std::sync::Arc;
-use serde::de::DeserializeOwned;
-use crate::secure_stream::crypto::error::{EncryptionError, DecryptionError};
-use crate::secure_stream::serialize::{serialize, deserialize};
-use crate::secure_stream::crypto::ciphertext::CipherText;
 
 /// Precomputed shared secret key.
 ///
@@ -59,8 +59,8 @@ impl SharedSecretKey {
     /// Returns ciphertext in case of success.
     /// Can return an `Error` in case of a serialisation error.
     pub fn encrypt<T>(&self, plaintext: &T) -> Result<Vec<u8>, EncryptionError>
-        where
-            T: Serialize,
+    where
+        T: Serialize,
     {
         self.encrypt_bytes(&serialize(plaintext)?)
     }
@@ -75,11 +75,8 @@ impl SharedSecretKey {
     /// is not valid, or if it can not be decrypted.
     pub fn decrypt_bytes(&self, encoded: &[u8]) -> Result<Vec<u8>, DecryptionError> {
         let CipherText { nonce, ciphertext } = deserialize(encoded)?;
-        Ok(box_::open_precomputed(
-            &ciphertext,
-            &box_::Nonce(nonce),
-            &self.precomputed,
-        ).map_err(DecryptionError::GenericDecryptionError)?)
+        box_::open_precomputed(&ciphertext, &box_::Nonce(nonce), &self.precomputed)
+            .map_err(DecryptionError::GenericDecryptionError)
     }
 
     /// Decrypts serialized `ciphertext` encrypted using authenticated encryption.
@@ -91,8 +88,8 @@ impl SharedSecretKey {
     /// Can return `Error` in case of a deserialisation error, if the ciphertext
     /// is not valid, or if it can not be decrypted.
     pub fn decrypt<T>(&self, ciphertext: &[u8]) -> Result<T, DecryptionError>
-        where
-            T: Serialize + DeserializeOwned,
+    where
+        T: Serialize + DeserializeOwned,
     {
         Ok(deserialize(&self.decrypt_bytes(ciphertext)?)?)
     }

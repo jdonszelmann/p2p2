@@ -1,24 +1,28 @@
-use serde::{Serialize, Deserialize};
-use std::net::SocketAddr;
 use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 
 /// The [`RendezvousServerManager`] is a registry for
 /// rendezvous server locations, which can be given to a
 /// rendezvous client so it knows where to connect to.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct RendezvousServerManager {
-    servers: Vec<SocketAddr>
+    servers: Vec<SocketAddr>,
 }
 
 impl RendezvousServerManager {
     pub fn new() -> Self {
         Self {
-            servers: Default::default()
+            servers: Default::default(),
         }
     }
 
     pub fn len(&self) -> usize {
         self.servers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.servers.is_empty()
     }
 
     pub fn add(&mut self, addr: SocketAddr) {
@@ -27,7 +31,7 @@ impl RendezvousServerManager {
 
     // TODO: maybe make iterator and remove rng
     pub fn remove_random(&mut self) -> Option<SocketAddr> {
-        if self.servers.len() == 0 {
+        if self.servers.is_empty() {
             None
         } else {
             let mut rng = thread_rng();

@@ -1,6 +1,6 @@
-use sodiumoxide::crypto::sign;
 use crate::secure_stream::crypto::generate_random_bytes;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use sodiumoxide::crypto::sign;
 
 /// Seed structure used to generate sign and encrypt keypairs deterministically.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]

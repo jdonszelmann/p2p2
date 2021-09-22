@@ -1,6 +1,5 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
-
 
 /// Detected NAT Type
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
@@ -22,7 +21,6 @@ impl Default for NatType {
         NatType::Unknown
     }
 }
-
 
 /// NAT Details
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]

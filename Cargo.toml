@@ -2,7 +2,7 @@
 name = "p2p2"
 authors = ["jonay2000 <jonabent@gmail.com>"]
 license = "MIT AND BSD-2-Clause"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2018"
 repository = "https://github.com/jonay2000/p2p2"
 documentation = "https://docs.rs/p2p2/"
