@@ -1,18 +1,22 @@
 [package]
 name = "p2p2"
+authors = ["jonay2000 <jonabent@gmail.com>"]
+license = "MIT AND BSD-2-Clause"
 version = "0.1.0"
 edition = "2018"
+repository = "https://github.com/jonay2000/p2p2"
+documentation = "https://docs.rs/p2p2/"
+description = "NAT Traversal for P2P communication"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = ["tcp", "udp", "runtime-tokio"]
 runtime-tokio = ["tokio", "tokio/net"]
+
 tcp = []
 udp = []
-
-# todo allow disabling of serde/derive (maybe?)
-serialize = []
 
 [dependencies]
 futures = {version="0.3.17", features=[]}
